@@ -242,7 +242,7 @@ if (isset($_GET['download'])) {
 
 <body class="p-6">
 
-    <h1 class="text-3xl mb-4">Simple PHP Shell & Deface Tool</h1>
+    <h3 class="text-3xl mb-4 text-center">Seafood88 Shell</h3>
 
     <?php if ($message): ?>
         <div class="msg <?php echo $msgColor === 'green' ? 'text-green' : 'text-red'; ?>">
